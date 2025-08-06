@@ -1,3 +1,6 @@
+use std::env;
+
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -24,13 +27,15 @@ pub struct Transaction {
     pub height: u64,
 }
 
+pub static NODE_URL: Lazy<String> =
+    Lazy::new(|| env::var("NODE_URL").expect("NODE_URL must be set"));
+
 pub async fn get_transactions_by_address(
     address: &str,
-    limit: usize,
 ) -> Result<Vec<Transaction>, reqwest::Error> {
     let url = format!(
-        "http://192.168.68.102:9053/blockchain/transaction/byAddress?address={}&limit={}",
-        address, limit
+        "{}/blockchain/transaction/byAddress?address={}",
+        *NODE_URL, address
     );
     let response = reqwest::get(&url).await?.json::<Vec<Transaction>>().await?;
 
