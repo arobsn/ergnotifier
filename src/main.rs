@@ -1,8 +1,11 @@
+use std::error::Error;
+
 use dotenvy::dotenv;
-use ergnotifier::telemetry;
+use ergnotifier::{node, telemetry};
 use tracing::{debug, info, warn};
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the tracing subscriber
     telemetry::init(telemetry::default_subscriber());
 
@@ -13,5 +16,8 @@ fn main() {
         Err(e) => warn!("Error loading .env file: {:?}", e),
     }
 
-    println!("Hello, world!");
+    // Check if the node is fully indexed
+    node::check_node_index().await?;
+
+    Ok(())
 }
