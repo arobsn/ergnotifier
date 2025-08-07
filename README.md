@@ -1,3 +1,3 @@
 # ergnotifier
 
-Banxa transactions notifier service
+Banxa transaction notifier service

@@ -30,21 +30,19 @@ pub struct ErgoTransaction {
     pub height: u64,
 }
 
-pub static NODE_URL: Lazy<String> =
-    Lazy::new(|| env::var("NODE_URL").expect("NODE_URL must be set"));
+pub static NODE_URL: Lazy<String> = Lazy::new(|| {
+    format!(
+        "{}/blockchain",
+        env::var("NODE_URL").expect("NODE_URL must be set")
+    )
+});
 
 #[tracing::instrument]
 pub async fn get_transactions_by_address(
     address: &str,
 ) -> Result<Vec<ErgoTransaction>, reqwest::Error> {
-    let url = format!(
-        "{}/blockchain/transaction/byAddress?address={}",
-        *NODE_URL, address
-    );
-    let response = reqwest::get(&url)
-        .await?
-        .json::<Vec<ErgoTransaction>>()
-        .await?;
+    let url = format!("{}/transaction/byAddress?address={}", *NODE_URL, address);
+    let response: Vec<ErgoTransaction> = reqwest::get(&url).await?.json().await?;
 
     Ok(response)
 }
@@ -59,7 +57,7 @@ pub struct IndexedHeightResponse {
 #[tracing::instrument]
 pub async fn check_node_index() -> Result<(), Box<dyn Error>> {
     info!("Checking if node is fully indexed...");
-    let url = format!("{}/blockchain/indexedHeight", *NODE_URL);
+    let url = format!("{}/indexedHeight", *NODE_URL);
     let resp: IndexedHeightResponse = reqwest::get(&url).await?.json().await?;
 
     if resp.indexed_height != resp.full_height {
