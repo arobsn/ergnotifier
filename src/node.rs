@@ -5,12 +5,14 @@ use serde::Deserialize;
 use tracing::{error, info};
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenAmount {
     pub token_id: String,
     pub amount: u64,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ErgoBox {
     pub value: u64,
     pub ergo_tree: String,
