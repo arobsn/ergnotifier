@@ -16,18 +16,26 @@ pub struct TokenAmount {
 pub struct ErgoBox {
     pub value: u64,
     pub ergo_tree: String,
-    pub tokens: Vec<TokenAmount>,
-    pub creation_height: u64,
+    pub assets: Vec<TokenAmount>,
+    pub creation_height: u32,
     pub transaction_id: String,
     pub index: u16,
 }
 
 #[derive(Debug, Deserialize)]
+pub struct NodeAPIResponse<T> {
+    pub items: T,
+    pub total: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ErgoTransaction {
     pub id: String,
     pub inputs: Vec<ErgoBox>,
     pub outputs: Vec<ErgoBox>,
-    pub height: u64,
+    pub num_confirmations: u32,
+    pub inclusion_height: Option<u32>,
 }
 
 pub static NODE_URL: Lazy<String> = Lazy::new(|| {
@@ -40,9 +48,15 @@ pub static NODE_URL: Lazy<String> = Lazy::new(|| {
 #[tracing::instrument]
 pub async fn get_transactions_by_address(
     address: &str,
-) -> Result<Vec<ErgoTransaction>, reqwest::Error> {
+) -> Result<NodeAPIResponse<Vec<ErgoTransaction>>, reqwest::Error> {
     let url = format!("{}/transaction/byAddress?address={}", *NODE_URL, address);
-    let response: Vec<ErgoTransaction> = reqwest::get(&url).await?.json().await?;
+    let response: NodeAPIResponse<Vec<ErgoTransaction>> = reqwest::Client::new()
+        .post(url)
+        .body(address.to_string())
+        .send()
+        .await?
+        .json()
+        .await?;
 
     Ok(response)
 }
