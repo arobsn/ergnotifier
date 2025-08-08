@@ -68,7 +68,7 @@ pub struct IndexedHeightResponse {
 }
 
 #[tracing::instrument]
-pub async fn check_node_index() -> Result<(), Box<dyn Error>> {
+pub async fn check_node_index_status() -> Result<(), Box<dyn Error>> {
     info!("Checking if node is fully indexed...");
     let url = build_url(&*NODE_URL, "blockchain/indexedHeight");
     let resp: IndexedHeightResponse = reqwest::get(&url).await?.json().await?;
@@ -85,7 +85,7 @@ pub async fn check_node_index() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn build_url(base: &str, endpoint: &str) -> String {
+fn build_url(base: &str, endpoint: &str) -> String {
     format!(
         "{}/{}",
         base.trim_end_matches('/'),
