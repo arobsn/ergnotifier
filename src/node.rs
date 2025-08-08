@@ -41,6 +41,14 @@ pub struct ErgoTransaction {
 pub static NODE_URL: Lazy<String> =
     Lazy::new(|| env::var("NODE_URL").expect("NODE_URL must be set"));
 
+pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("Failed to create HTTP client");
+    client
+});
+
 #[tracing::instrument]
 pub async fn get_transactions_by_address(
     address: &str,
@@ -49,7 +57,7 @@ pub async fn get_transactions_by_address(
         &*NODE_URL,
         &format!("blockchain/transaction/byAddress?address={}", address),
     );
-    let response: NodeAPIResponse<Vec<ErgoTransaction>> = reqwest::Client::new()
+    let response: NodeAPIResponse<Vec<ErgoTransaction>> = HTTP_CLIENT
         .post(url)
         .body(address.to_string())
         .send()
@@ -71,7 +79,7 @@ pub struct IndexedHeightResponse {
 pub async fn check_node_index_status() -> Result<(), Box<dyn Error>> {
     info!("Checking if node is fully indexed...");
     let url = build_url(&*NODE_URL, "blockchain/indexedHeight");
-    let resp: IndexedHeightResponse = reqwest::get(&url).await?.json().await?;
+    let resp: IndexedHeightResponse = HTTP_CLIENT.get(&url).send().await?.json().await?;
 
     if resp.indexed_height != resp.full_height {
         error!("Node is not fully indexed.");
