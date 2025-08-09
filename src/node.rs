@@ -76,16 +76,22 @@ pub struct IndexedHeightResponse {
 }
 
 #[tracing::instrument]
+pub async fn get_indexed_height() -> Result<IndexedHeightResponse, Box<dyn Error>> {
+    let url = build_url(&*NODE_URL, "blockchain/indexedHeight");
+    let resp = HTTP_CLIENT.get(&url).send().await?.json().await?;
+    Ok(resp)
+}
+
+#[tracing::instrument]
 pub async fn check_node_index_status() -> Result<(), Box<dyn Error>> {
     info!("Checking if node is fully indexed...");
-    let url = build_url(&*NODE_URL, "blockchain/indexedHeight");
-    let resp: IndexedHeightResponse = HTTP_CLIENT.get(&url).send().await?.json().await?;
+    let index_status = get_indexed_height().await?;
 
-    if resp.indexed_height != resp.full_height {
+    if index_status.indexed_height != index_status.full_height {
         error!("Node is not fully indexed.");
         return Err(format!(
             "Node is not fully indexed. Indexed height: {}, Full height: {}",
-            resp.indexed_height, resp.full_height
+            index_status.indexed_height, index_status.full_height
         )
         .into());
     }
