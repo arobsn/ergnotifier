@@ -13,9 +13,8 @@ pub fn save(state: &AppState) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn load() -> Result<AppState, Box<dyn Error>> {
-    let state = load_from_disk(Path::new("state.json"))?;
-    Ok(state)
+pub fn load() -> AppState {
+    load_from_disk(Path::new("state.json")).unwrap_or_else(|_| AppState { indexed_height: 0 })
 }
 
 fn save_to_disk<T: Serialize>(path: &Path, data: &T) -> Result<(), Box<dyn Error>> {
