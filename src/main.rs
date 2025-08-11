@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use dotenvy::dotenv;
-use ergnotifier::{node, telemetry};
+use ergnotifier::{node, telemetry, watcher};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -13,6 +13,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Check if the node is fully indexed
     node::check_node_index_status().await?;
+
+    // Spawn the watcher
+    watcher::start().await;
 
     Ok(())
 }
