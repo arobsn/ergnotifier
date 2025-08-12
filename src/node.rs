@@ -35,11 +35,13 @@ pub struct ErgoTransaction {
     pub inputs: Vec<ErgoBox>,
     pub outputs: Vec<ErgoBox>,
     pub num_confirmations: u32,
-    pub inclusion_height: Option<u32>,
+    pub inclusion_height: u32,
 }
 
-pub static NODE_URL: Lazy<String> =
-    Lazy::new(|| env::var("NODE_URL").expect("NODE_URL must be set"));
+const PAGE_SIZE: u16 = 20;
+
+pub static ERGO_NODE_URL: Lazy<String> =
+    Lazy::new(|| env::var("ERGO_NODE_URL").expect("ERGO_NODE_URL must be set"));
 
 pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
     let client = reqwest::Client::builder()
@@ -49,27 +51,39 @@ pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
     client
 });
 
-pub async fn get_transactions_by_address_until(
+pub async fn get_untracked_transactions_by_address(
     address: &str,
     tx_id: &str,
-) -> Result<Vec<ErgoTransaction>, reqwest::Error> {
-    let mut txns = Vec::new();
+) -> Vec<ErgoTransaction> {
+    let mut txs = vec![];
+    let mut offset = 0;
 
     loop {
-        let mut new_txns = get_transactions_by_address(&address, None, None)
-            .await?
-            .items;
+        let mut new_txns =
+            match get_transactions_by_address(&address, Some(offset), Some(PAGE_SIZE)).await {
+                Ok(resp) => resp.items,
+                Err(e) => {
+                    error!("Error fetching transactions: {}", e);
+                    return txs; // Return what we have so far
+                }
+            };
 
         let idx = new_txns.iter().position(|tx| tx.id == tx_id);
         if let Some(i) = idx {
-            txns.append(&mut new_txns.drain(i + 1..).collect());
+            txs.append(&mut new_txns.drain(..i).collect());
             break;
         }
 
-        txns.append(&mut new_txns);
+        if new_txns.len() < PAGE_SIZE as usize {
+            txs.append(&mut new_txns);
+            break;
+        }
+
+        txs.append(&mut new_txns);
+        offset += PAGE_SIZE;
     }
 
-    Ok(txns)
+    txs
 }
 
 #[tracing::instrument]
@@ -79,10 +93,10 @@ pub async fn get_transactions_by_address(
     limit: Option<u16>,
 ) -> Result<NodeAPIResponse<Vec<ErgoTransaction>>, reqwest::Error> {
     let url = build_url(
-        &*NODE_URL,
+        &*ERGO_NODE_URL,
         &format!(
             "blockchain/transaction/byAddress?offset={}&limit={}",
-            offset.unwrap_or(20),
+            offset.unwrap_or(PAGE_SIZE),
             limit.unwrap_or(0)
         ),
     );
@@ -107,7 +121,7 @@ pub struct IndexedHeightResponse {
 
 #[tracing::instrument]
 pub async fn get_indexed_height() -> Result<IndexedHeightResponse, Box<dyn Error>> {
-    let url = build_url(&*NODE_URL, "blockchain/indexedHeight");
+    let url = build_url(&*ERGO_NODE_URL, "blockchain/indexedHeight");
     let resp = HTTP_CLIENT.get(&url).send().await?.json().await?;
     Ok(resp)
 }
