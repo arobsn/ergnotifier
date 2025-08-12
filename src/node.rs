@@ -52,11 +52,18 @@ pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
 #[tracing::instrument]
 pub async fn get_transactions_by_address(
     address: &str,
+    offset: Option<u16>,
+    limit: Option<u16>,
 ) -> Result<NodeAPIResponse<Vec<ErgoTransaction>>, reqwest::Error> {
     let url = build_url(
         &*NODE_URL,
-        &format!("blockchain/transaction/byAddress?address={}", address),
+        &format!(
+            "blockchain/transaction/byAddress?offset={}&limit={}",
+            offset.unwrap_or(20),
+            limit.unwrap_or(0)
+        ),
     );
+
     let response: NodeAPIResponse<Vec<ErgoTransaction>> = HTTP_CLIENT
         .post(url)
         .body(address.to_string())
