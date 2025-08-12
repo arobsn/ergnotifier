@@ -8,14 +8,15 @@ use crate::node;
 pub async fn start() -> () {
     let mut last_height = 0;
     loop {
-        sleep(Duration::from_secs(5));
         let height = get_last_indexed_height().await;
-        if last_height == height || height == 0 {
+        if height == 0 || height == last_height {
             continue;
         }
 
         info!(height = height, "New block found");
         last_height = height;
+
+        sleep(Duration::from_secs(5));
     }
 }
 
