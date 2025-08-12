@@ -3,7 +3,7 @@ use std::{env, thread::sleep, time::Duration};
 use once_cell::sync::Lazy;
 use tracing::{error, info};
 
-use crate::{node, state};
+use crate::{node, notifier, state};
 
 pub static ERGO_ADDRESS: Lazy<String> =
     Lazy::new(|| env::var("ERGO_ADDRESS").expect("ERGO_ADDRESS must be set"));
@@ -35,15 +35,17 @@ pub async fn start() -> () {
         let untracked_txs = untracked_txs
             .iter()
             .filter(|tx| tx.num_confirmations > *ERGO_CONF_NUM)
+            .map(|tx| tx.id.as_str())
             .collect::<Vec<_>>();
 
         if !untracked_txs.is_empty() {
             info!(count = untracked_txs.len(), "Untracked transactions found");
 
-            state.last_tx_id = untracked_txs
-                .first()
-                .map_or_else(|| "".into(), |tx| tx.id.clone());
-            let _ = state::save(&state);
+            let notified = notifier::dispatch(&untracked_txs).await;
+            if notified {
+                state.last_tx_id = untracked_txs.first().unwrap().to_string();
+                let _ = state::save(&state);
+            }
         }
     }
 }

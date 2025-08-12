@@ -4,6 +4,8 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing::{error, info};
 
+use crate::HTTP_CLIENT;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenAmount {
@@ -43,14 +45,6 @@ const PAGE_SIZE: u16 = 20;
 pub static ERGO_NODE_URL: Lazy<String> =
     Lazy::new(|| env::var("ERGO_NODE_URL").expect("ERGO_NODE_URL must be set"));
 
-pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .expect("Failed to create HTTP client");
-    client
-});
-
 pub async fn get_untracked_transactions_by_address(
     address: &str,
     tx_id: &str,
@@ -63,7 +57,7 @@ pub async fn get_untracked_transactions_by_address(
             match get_transactions_by_address(&address, Some(offset), Some(PAGE_SIZE)).await {
                 Ok(resp) => resp.items,
                 Err(e) => {
-                    error!("Error fetching transactions: {}", e);
+                    error!(error = ?e, "Error fetching transactions");
                     return txs; // Return what we have so far
                 }
             };
