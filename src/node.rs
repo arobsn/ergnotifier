@@ -49,6 +49,29 @@ pub static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
     client
 });
 
+pub async fn get_transactions_by_address_until(
+    address: &str,
+    tx_id: &str,
+) -> Result<Vec<ErgoTransaction>, reqwest::Error> {
+    let mut txns = Vec::new();
+
+    loop {
+        let mut new_txns = get_transactions_by_address(&address, None, None)
+            .await?
+            .items;
+
+        let idx = new_txns.iter().position(|tx| tx.id == tx_id);
+        if let Some(i) = idx {
+            txns.append(&mut new_txns.drain(i + 1..).collect());
+            break;
+        }
+
+        txns.append(&mut new_txns);
+    }
+
+    Ok(txns)
+}
+
 #[tracing::instrument]
 pub async fn get_transactions_by_address(
     address: &str,

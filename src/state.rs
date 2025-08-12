@@ -2,19 +2,23 @@ use std::{error::Error, fs::File, path::Path};
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+const FILENAME: &str = "state.json";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
-    pub indexed_height: u64,
+    pub last_tx_id: String,
 }
 
 pub fn save(state: &AppState) -> Result<(), Box<dyn Error>> {
-    let path = Path::new("state.json");
+    let path = Path::new(FILENAME);
     save_to_disk(path, state)?;
     Ok(())
 }
 
 pub fn load() -> AppState {
-    load_from_disk(Path::new("state.json")).unwrap_or_else(|_| AppState { indexed_height: 0 })
+    load_from_disk(Path::new(FILENAME)).unwrap_or_else(|_| AppState {
+        last_tx_id: "".into(),
+    })
 }
 
 fn save_to_disk<T: Serialize>(path: &Path, data: &T) -> Result<(), Box<dyn Error>> {
