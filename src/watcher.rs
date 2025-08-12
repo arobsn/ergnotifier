@@ -3,7 +3,10 @@ use std::{env, thread::sleep, time::Duration};
 use once_cell::sync::Lazy;
 use tracing::{error, info};
 
-use crate::node;
+use crate::{node, state};
+
+pub static ERGO_ADDRESS: Lazy<String> =
+    Lazy::new(|| env::var("ERGO_ADDRESS").expect("ERGO_ADDRESS must be set"));
 
 pub static ERGO_CONF_NUM: Lazy<u32> = Lazy::new(|| {
     env::var("ERGO_CONF_NUM")
@@ -12,11 +15,9 @@ pub static ERGO_CONF_NUM: Lazy<u32> = Lazy::new(|| {
         .unwrap()
 });
 
-pub static ERGO_ADDRESS: Lazy<String> =
-    Lazy::new(|| env::var("ERGO_ADDRESS").expect("ERGO_ADDRESS must be set"));
-
 #[tracing::instrument]
 pub async fn start() -> () {
+    let mut state = state::load();
     let mut last_height = 0;
     loop {
         sleep(Duration::from_secs(5));
@@ -28,7 +29,8 @@ pub async fn start() -> () {
         info!(height = height, "New block found");
         last_height = height;
 
-        let untracked_txs = node::get_untracked_transactions_by_address(&ERGO_ADDRESS, "").await;
+        let untracked_txs =
+            node::get_untracked_transactions_by_address(&ERGO_ADDRESS, &state.last_tx_id).await;
 
         let untracked_txs = untracked_txs
             .iter()
@@ -37,6 +39,11 @@ pub async fn start() -> () {
 
         if !untracked_txs.is_empty() {
             info!(count = untracked_txs.len(), "Untracked transactions found");
+
+            state.last_tx_id = untracked_txs
+                .first()
+                .map_or_else(|| "".into(), |tx| tx.id.clone());
+            let _ = state::save(&state);
         }
     }
 }
