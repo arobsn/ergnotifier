@@ -3,7 +3,11 @@ use std::{env, thread::sleep, time::Duration};
 use once_cell::sync::Lazy;
 use tracing::{error, info};
 
-use crate::{node, notifier, state};
+use crate::{
+    node::{self, ErgoTransaction},
+    notifier::{self, Notification},
+    state,
+};
 
 pub static ERGO_ADDRESS: Lazy<String> =
     Lazy::new(|| env::var("ERGO_ADDRESS").expect("ERGO_ADDRESS must be set"));
@@ -32,22 +36,44 @@ pub async fn start() -> () {
         let untracked_txs =
             node::get_untracked_transactions_by_address(&ERGO_ADDRESS, &state.last_tx_id).await;
 
-        let untracked_txs = untracked_txs
-            .iter()
-            .filter(|tx| tx.num_confirmations > *ERGO_CONF_NUM)
-            .map(|tx| tx.id.as_str())
-            .collect::<Vec<_>>();
+        let mut notifications = vec![];
+        for tx in untracked_txs {
+            if tx.num_confirmations < *ERGO_CONF_NUM {
+                continue; // Skip unconfirmed transactions
+            }
+            let incoming_value = calc_incoming_value(&tx);
+            if incoming_value == 0 {
+                continue; // Skip transactions with no incoming value
+            }
 
-        if !untracked_txs.is_empty() {
-            info!(count = untracked_txs.len(), "Untracked transactions found");
+            notifications.push(Notification {
+                tx_id: tx.id,
+                coin: "ERG",
+                wallet: &ERGO_ADDRESS,
+                amount: incoming_value,
+            });
+        }
 
-            let notified = notifier::dispatch(&untracked_txs).await;
-            if notified {
-                state.last_tx_id = untracked_txs.first().unwrap().to_string();
-                let _ = state::save(&state);
+        if !notifications.is_empty() {
+            info!(count = notifications.len(), "Untracked transactions found");
+
+            for notification in notifications {
+                let notified = notifier::dispatch(&notification).await;
+                if notified {
+                    state.last_tx_id = notification.tx_id;
+                    let _ = state::save(&state);
+                }
             }
         }
     }
+}
+
+fn calc_incoming_value(tx: &ErgoTransaction) -> u64 {
+    tx.outputs
+        .iter()
+        .filter(|o| o.address == *ERGO_ADDRESS)
+        .map(|o| o.value)
+        .sum()
 }
 
 async fn get_last_indexed_height() -> u64 {

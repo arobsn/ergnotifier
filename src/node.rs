@@ -8,19 +8,9 @@ use crate::HTTP_CLIENT;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TokenAmount {
-    pub token_id: String,
-    pub amount: u64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ErgoBox {
     pub value: u64,
-    pub ergo_tree: String,
-    pub assets: Vec<TokenAmount>,
-    pub creation_height: u32,
-    pub transaction_id: String,
+    pub address: String,
     pub index: u16,
 }
 

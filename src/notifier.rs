@@ -29,13 +29,13 @@ static CONFIG: Lazy<NotificationServiceConfig> = Lazy::new(|| {
 
 #[derive(Debug)]
 pub struct Notification<'a> {
-    pub tx_id: &'a str,
+    pub tx_id: String,
     pub coin: &'a str,
     pub wallet: &'a str,
     pub amount: u64,
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "info")]
 pub async fn dispatch(notification: &Notification<'_>) -> bool {
     info!("Dispatching email notification");
 
@@ -107,10 +107,50 @@ fn build_email_payload(notification: &Notification<'_>) -> EmailPayload {
             Amount: {}
             Transaction Hash: {}
             "#,
-            notification.wallet, notification.coin, notification.amount, notification.tx_id
+            notification.wallet,
+            notification.coin,
+            to_decimal(notification.amount, 9),
+            notification.tx_id
         )
         .trim()
         .to_string(),
     };
     payload
+}
+
+fn to_decimal(value: u64, decimals: i32) -> f64 {
+    let factor = 10f64.powi(decimals);
+    value as f64 / factor
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_decimal_zero() {
+        assert_eq!(to_decimal(0, 9), 0.0);
+    }
+
+    #[test]
+    fn test_to_decimal_no_decimals() {
+        assert_eq!(to_decimal(12345, 0), 12345.0);
+    }
+
+    #[test]
+    fn test_to_decimal_basic() {
+        assert_eq!(to_decimal(1000000000, 9), 1.0);
+    }
+
+    #[test]
+    fn test_to_decimal_fractional() {
+        let result = to_decimal(123456789, 6);
+        assert!((result - 123.456789).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_to_decimal_large_decimals() {
+        let result = to_decimal(1, 12);
+        assert!((result - 0.000000000001).abs() < 1e-15);
+    }
 }
