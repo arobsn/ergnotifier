@@ -61,6 +61,7 @@ pub async fn start() -> () {
                 let notified = notifier::dispatch(&notification).await;
                 if notified {
                     state.last_tx_id = notification.tx_id;
+                    info!(last_tx_id = state.last_tx_id, "Updated last_tx_id");
                     let _ = state::save(&state);
                 }
             }

@@ -54,6 +54,7 @@ pub async fn dispatch(notification: &Notification<'_>) -> bool {
     };
 
     if response.status().is_success() {
+        info!("Email sent successfully");
         true
     } else {
         let body: Value = match response.json().await {
