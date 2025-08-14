@@ -28,6 +28,7 @@ pub struct ErgoTransaction {
     pub outputs: Vec<ErgoBox>,
     pub num_confirmations: u32,
     pub inclusion_height: u32,
+    pub global_index: u32,
 }
 
 const PAGE_SIZE: u16 = 20;
@@ -67,6 +68,7 @@ pub async fn get_untracked_transactions_by_address(
         offset += PAGE_SIZE;
     }
 
+    txs.sort_by(|a, b| a.global_index.cmp(&b.global_index));
     txs
 }
 
