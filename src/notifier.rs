@@ -27,14 +27,22 @@ static CONFIG: Lazy<NotificationServiceConfig> = Lazy::new(|| {
     }
 });
 
-#[tracing::instrument(skip(tx_ids))]
-pub async fn dispatch(tx_ids: &[&str]) -> bool {
+#[derive(Debug)]
+pub struct Notification<'a> {
+    pub tx_id: &'a str,
+    pub coin: &'a str,
+    pub wallet: &'a str,
+    pub amount: u64,
+}
+
+#[tracing::instrument]
+pub async fn dispatch(notification: &Notification<'_>) -> bool {
     info!("Dispatching email notification");
 
     let response = match HTTP_CLIENT
         .post("https://api.brevo.com/v3/smtp/email")
         .header("api-key", &CONFIG.api_key)
-        .json(&build_email_payload(tx_ids))
+        .json(&build_email_payload(&notification))
         .send()
         .await
     {
@@ -81,7 +89,7 @@ struct Recipient {
     email: String,
 }
 
-fn build_email_payload(tx_ids: &[&str]) -> EmailPayload {
+fn build_email_payload(notification: &Notification<'_>) -> EmailPayload {
     let payload = EmailPayload {
         sender: Sender {
             name: "Ergo Notifier".into(),
@@ -93,9 +101,13 @@ fn build_email_payload(tx_ids: &[&str]) -> EmailPayload {
         subject: "Ergo Transactions Notification".into(),
         text_content: format!(
             r#"
-            **Confirmed Transactions:**
-            {}"#,
-            tx_ids.join("\n")
+            Wallet Address: {}
+            Blockchain: ERG
+            Coin: {}
+            Amount: {}
+            Transaction Hash: {}
+            "#,
+            notification.wallet, notification.coin, notification.amount, notification.tx_id
         )
         .trim()
         .to_string(),
