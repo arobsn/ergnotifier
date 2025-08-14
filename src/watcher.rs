@@ -38,7 +38,9 @@ pub async fn start() -> () {
 
         let mut notifications = vec![];
         for tx in untracked_txs {
-            if tx.num_confirmations < *ERGO_CONF_NUM {
+            // node doesn't consider the inclusion block when counting confirmations,
+            // so we need to add 1 to reflect explorer confirmation counting.
+            if tx.num_confirmations + 1 < *ERGO_CONF_NUM {
                 continue; // Skip unconfirmed transactions
             }
             let incoming_value = calc_incoming_value(&tx);
